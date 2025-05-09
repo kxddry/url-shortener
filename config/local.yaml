@@ -1,12 +1,19 @@
 env: "local" # local, dev, prod
 postgres:
     host: "localhost"
-    port: 5432
+    port: "5432"
     user: "postgres"
     password: "password"
     dbname: "database"
     sslmode: "disable"
 
+redis:
+    host: "localhost"
+    user: "default"
+    port: 5374
+    password: ""
+    db: 0
+    protocol: "tcp"
 
 http_server:
     address: "localhost:8085"

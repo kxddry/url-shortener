@@ -14,6 +14,7 @@ import (
 	"url-shortener/internal/lib/logger/sl"
 	"url-shortener/internal/storage"
 	"url-shortener/internal/storage/postgres"
+	rds "url-shortener/internal/storage/redis"
 )
 
 func main() {
@@ -29,6 +30,11 @@ func main() {
 	// init storage
 	var strg storage.Storage
 	strg = postgres.NewPostgresStorage(cfg.Storage)
+	rdsClient := rds.NewRedisClient(cfg.Redis)
+	if err := rdsClient.Connect(); err != nil {
+		log.Error("Failed to connect to Redis", sl.Err(err))
+		os.Exit(1)
+	}
 	if err := strg.Connect(); err != nil {
 		log.Error("Failed to connect to database", sl.Err(err))
 		os.Exit(1)
@@ -46,8 +52,8 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/url", save.New(log, strg))
-	router.Get("/{alias}", redirect.New(log, strg))
+	router.Post("/url", save.New(log, strg, rdsClient))
+	router.Get("/{alias}", redirect.New(log, strg, rdsClient))
 
 	log.Info("Starting HTTP server", slog.String("address", cfg.HTTPServer.Address))
 

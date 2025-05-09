@@ -45,5 +45,6 @@ This project is a URL shortener service implemented as a REST API using the Go p
 
 ## todo:
 - [ ] Add more tests
-- [ ] implement Redis
+- [X] implement Redis
+- [ ] debug Redis
 - [ ] add authorization

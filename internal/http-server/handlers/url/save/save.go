@@ -2,6 +2,7 @@ package save
 
 import (
 	"errors"
+	"fmt"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -30,7 +31,7 @@ type URLSaver interface {
 
 const aliasLength = 6
 
-func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
+func New(log *slog.Logger, urlSaver, redis URLSaver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.url.save.New"
 
@@ -81,6 +82,12 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 			w.WriteHeader(http.StatusNotAcceptable)
 			render.JSON(w, r, resp.Error(resp.NotAcceptable, "alias is reserved"))
 			return
+		}
+
+		// save to redis first
+		n, err := redis.SaveURL(req.URL, alias)
+		if n != 1337 || err != nil {
+			log.Error(fmt.Sprintf("failed to save to redis %s: %w", op, err))
 		}
 
 		id, err := urlSaver.SaveURL(req.URL, alias)

@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	Env        string     `yaml:"env" env-required:"true"`
-	Storage    Storage    `yaml:"postgres" env-required:"true"`
-	HTTPServer HTTPServer `yaml:"http_server"`
+	Env        string       `yaml:"env" env-required:"true"`
+	Storage    Storage      `yaml:"postgres" env-required:"true"`
+	HTTPServer HTTPServer   `yaml:"http_server"`
+	Redis      RedisStorage `yaml:"redis" env-required:"true"`
 }
 
 type Storage struct {
@@ -21,6 +22,16 @@ type Storage struct {
 	Password string `yaml:"password" env-required:"true"`
 	DBName   string `yaml:"dbname" env-required:"true"`
 	SSLMode  string `yaml:"sslmode" env-default:"disable"`
+}
+
+type RedisStorage struct {
+	Host     string `yaml:"host" env-required:"true"`
+	Port     string `yaml:"port" env-required:"true"`
+	User     string `yaml:"user" env-default:""`
+	Password string `yaml:"password" env-default:""`
+	DB       int    `yaml:"db" env-default:"0" validate:"min=0,integer"`
+	PoolSize int    `yaml:"pool_size" env-default:"10"`
+	Protocol string `yaml:"protocol" env-default:"tcp"`
 }
 
 type HTTPServer struct {
