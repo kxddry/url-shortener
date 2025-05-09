@@ -1,0 +1,55 @@
+package redirect
+
+import (
+	"errors"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/render"
+	"net/http"
+	resp "url-shortener/internal/lib/api/response"
+	"url-shortener/internal/lib/logger/sl"
+	"url-shortener/internal/storage"
+)
+import (
+	"log/slog"
+)
+
+type URLGetter interface {
+	GetURL(alias string) (string, error)
+}
+
+func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const op = "handlers.url.redirect.New"
+
+		log = log.With(
+			slog.String("op", op),
+			slog.String("request_id", middleware.GetReqID(r.Context())))
+
+		alias := chi.URLParam(r, "alias")
+		if alias == "" {
+			log.Debug("alias is empty")
+			w.WriteHeader(http.StatusNotAcceptable)
+			render.JSON(w, r, resp.Error(resp.NotAcceptable, "alias is empty. Usage: POST to /url to create an alias or GET /{alias} to redirect"))
+			return
+		}
+		resURL, err := urlGetter.GetURL(alias)
+		if errors.Is(err, storage.ErrAliasNotFound) {
+			log.Debug("alias not found", slog.String("alias", alias))
+			w.WriteHeader(http.StatusNotFound)
+			render.JSON(w, r, resp.Error(resp.NotFound, "alias not found"))
+			return
+		}
+		if err != nil {
+			log.Error("failed to get URL", slog.String("alias", alias), sl.Err(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error(resp.InternalServerError, "failed to get URL"))
+			return
+		}
+		log.Debug("alias found", slog.String("alias", alias), slog.String("url", resURL))
+		http.Redirect(w, r, resURL, http.StatusFound)
+		log.Info("redirected", slog.String("alias", alias), slog.String("url", resURL))
+
+		return
+	}
+}
