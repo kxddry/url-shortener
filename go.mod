@@ -1,4 +1,4 @@
-module url-shortener
+module github.com/kxddry/url-shortener
 
 go 1.24
 
