@@ -1,0 +1,18 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  run:
+    desc: "run the url shortener"
+    cmds:
+      - task migrate
+      - CONFIG_PATH=config/local.yaml go run ./cmd/url-shortener
+  migrate:
+    desc: "init all required tables"
+    cmds:
+      - go run ./cmd/migrator --config=config/migration.yaml
+  migrate_down:
+    desc: "drop all set up tables"
+    cmds:
+      - go run ./cmd/migrator --config=config/migration.yaml --operation=down
