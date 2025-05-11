@@ -12,12 +12,12 @@ type Response struct {
 }
 
 const (
-	StatusOK            = "200"
-	BadRequest          = "400"
-	NotFound            = "404"
-	InternalServerError = "500"
-	Forbidden           = "403"
-	NotAcceptable       = "406"
+	StatusOK            = "OK"
+	BadRequest          = "Bad Request"
+	NotFound            = "Not Found"
+	InternalServerError = "Internal Server Error"
+	Forbidden           = "Forbidden"
+	NotAcceptable       = "Not Acceptable"
 )
 
 func OK() Response {

@@ -18,8 +18,8 @@ type RedisClient struct {
 	client *redis.Client
 }
 
-func NewRedisClient(cfg config.RedisStorage) *RedisClient {
-	return &RedisClient{
+func New(cfg config.RedisStorage) (*RedisClient, error) {
+	r := RedisClient{
 		Options: redis.Options{
 			Addr:     cfg.Host + ":" + cfg.Port,
 			Password: cfg.Password,
@@ -30,9 +30,10 @@ func NewRedisClient(cfg config.RedisStorage) *RedisClient {
 		},
 		client: nil,
 	}
+	return &r, r.connect()
 }
 
-func (r *RedisClient) Connect() error {
+func (r *RedisClient) connect() error {
 	if r.client != nil {
 		return nil
 	}
@@ -50,7 +51,7 @@ func (r *RedisClient) SaveURL(urlToSave, alias string) (int64, error) {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 	multi.Save(context.Background())
-	return 1337, nil // return 1337 to indicate redis is used
+	return 0, nil
 }
 
 func (r *RedisClient) GetURL(alias string) (string, error) {
@@ -89,4 +90,8 @@ func (r *RedisClient) GenerateAlias(i int) (string, error) {
 		alias = random.NewRandomString(i)
 	}
 	return alias, nil
+}
+
+func (r *RedisClient) Close() error {
+	return r.client.Close()
 }

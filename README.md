@@ -10,7 +10,7 @@ This project is a URL shortener service implemented as a REST API using the Go p
 # Features
 - RESTful API for URL shortening and retrieval
 - Persistent storage for shortened URLs
-- Configurable storage backends (e.g., PostgreSQL)
+- Configurable storage backends (PostgreSQL, Redis by default)
 - Scalable and efficient design
 
 # Getting Started
@@ -27,7 +27,7 @@ This project is a URL shortener service implemented as a REST API using the Go p
 
 3. Run the application:
    ```bash
-   go run main.go
+   task run
    ```
 4. Access the API:
     - Shorten a URL:

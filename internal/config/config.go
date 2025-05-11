@@ -2,8 +2,8 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"github.com/ilyakaznacheev/cleanenv"
-	"log"
 	"os"
 	"time"
 )
@@ -13,15 +13,6 @@ type Config struct {
 	Storage    Storage      `yaml:"postgres" env-required:"true"`
 	HTTPServer HTTPServer   `yaml:"http_server"`
 	Redis      RedisStorage `yaml:"redis" env-required:"true"`
-}
-
-type Storage struct {
-	Host     string `yaml:"host" env-required:"true"`
-	Port     string `yaml:"port" env-required:"true"`
-	User     string `yaml:"user" env-required:"true"`
-	Password string `yaml:"password" env-required:"true"`
-	DBName   string `yaml:"dbname" env-required:"true"`
-	SSLMode  string `yaml:"sslmode" env-default:"disable"`
 }
 
 type RedisStorage struct {
@@ -41,27 +32,11 @@ type HTTPServer struct {
 }
 
 func MustLoad() *Config {
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		log.Fatal("CONFIG_PATH environment variable is not set")
+	path := fetchConfigPath()
+	if path == "" {
+		panic("config path is empty")
 	}
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("Config file does not exist: %s", configPath)
-	}
-
-	var cfg Config
-	// Read the config file
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Fatalf("Failed to read config file: %v", err)
-	}
-
-	// validate the config file
-	err := cfg.validate()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return &cfg
+	return MustLoadByPath(path)
 }
 
 func (c *Config) validate() error {
@@ -69,4 +44,71 @@ func (c *Config) validate() error {
 		return errors.New("config: invalid env value")
 	}
 	return nil
+}
+
+type Storage struct {
+	Host     string `yaml:"host" env-required:"true"`
+	Port     int    `yaml:"port" env-required:"true"`
+	User     string `yaml:"user" env-required:"true"`
+	Password string `yaml:"password" env-required:"true"`
+	DBName   string `yaml:"dbname" env-required:"true"`
+	SSLMode  string `yaml:"sslmode" env-default:"enable"`
+}
+
+type MigrationConfig struct {
+	Storage    Storage    `yaml:"storage" env-required:"true"`
+	Migrations Migrations `yaml:"migrations" env-required:"true"`
+}
+
+type Migrations struct {
+	Path string `yaml:"path" env-required:"true"`
+}
+
+type GRPCServer struct {
+	Port    int           `yaml:"port" env-required:"true"`
+	Timeout time.Duration `yaml:"timeout" env-default:"10s"`
+}
+
+func MustLoadMigration() *MigrationConfig {
+	path := fetchConfigPath()
+	if path == "" {
+		panic("config path is empty")
+	}
+	return MustLoadMigrationByPath(path)
+}
+
+func MustLoadMigrationByPath(path string) *MigrationConfig {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		panic("config file doesn't exist " + path)
+	}
+	var res MigrationConfig
+	if err := cleanenv.ReadConfig(path, &res); err != nil {
+		panic(err)
+	}
+	return &res
+}
+
+func MustLoadByPath(path string) *Config {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		panic("config file doesn't exist " + path)
+	}
+	var res Config
+	if err := cleanenv.ReadConfig(path, &res); err != nil {
+		panic(err)
+	}
+	return &res
+}
+
+// get config path from flag or env.
+// prioritize flag over env over default
+// default: empty string
+func fetchConfigPath() string {
+	var res string
+	flag.StringVar(&res, "config", "", "path to config file")
+	flag.Parse()
+	if res != "" {
+		return res
+	}
+	env := os.Getenv("CONFIG_PATH")
+	return env
 }

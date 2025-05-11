@@ -85,8 +85,8 @@ func New(log *slog.Logger, urlSaver, redis URLSaver) http.HandlerFunc {
 		}
 
 		// save to redis first
-		n, err := redis.SaveURL(req.URL, alias)
-		if n != 1337 || err != nil {
+		_, err := redis.SaveURL(req.URL, alias)
+		if err != nil {
 			log.Error(fmt.Sprintf("failed to save to redis %s: %w", op, err))
 		}
 

@@ -55,8 +55,8 @@ func New(log *slog.Logger, urlGetter URLGetter, redis URLGetSaver) http.HandlerF
 			return
 		}
 		log.Debug("alias found", slog.String("alias", alias), slog.String("url", resURL))
-		n, err := redis.SaveURL(alias, resURL) // cache the URL in redis
-		if err != nil || n != 1337 {
+		_, err = redis.SaveURL(alias, resURL) // cache the URL in redis
+		if err != nil {
 			log.Error("failed to save URL in redis", slog.String("alias", alias), slog.String("url", resURL), sl.Err(err))
 		}
 		http.Redirect(w, r, resURL, http.StatusFound)

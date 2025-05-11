@@ -1,15 +1,10 @@
 package storage
 
 import (
-	"database/sql"
 	"errors"
 )
 
 type Storage interface {
-	Connect() error
-	Close() error
-	GetDB() *sql.DB
-	New() error
 	SaveURL(urlToSave, alias string) (int64, error)
 	GetURL(alias string) (string, error)
 	DeleteURL(alias string) error

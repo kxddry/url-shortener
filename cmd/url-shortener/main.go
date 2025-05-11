@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/kxddry/url-shortener/internal/config"
@@ -9,12 +11,13 @@ import (
 	mwLogger "github.com/kxddry/url-shortener/internal/http-server/middleware/logger"
 	"github.com/kxddry/url-shortener/internal/lib/logger"
 	"github.com/kxddry/url-shortener/internal/lib/logger/sl"
-	"github.com/kxddry/url-shortener/internal/storage"
 	"github.com/kxddry/url-shortener/internal/storage/postgres"
 	rds "github.com/kxddry/url-shortener/internal/storage/redis"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -28,19 +31,14 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	// init storage
-	var strg storage.Storage
-	strg = postgres.NewPostgresStorage(cfg.Storage)
-	rdsClient := rds.NewRedisClient(cfg.Redis)
-	if err := rdsClient.Connect(); err != nil {
-		log.Error("Failed to connect to Redis", sl.Err(err))
-		os.Exit(1)
-	}
-	if err := strg.Connect(); err != nil {
+	store, err := postgres.New(cfg.Storage)
+	if err != nil {
 		log.Error("Failed to connect to database", sl.Err(err))
 		os.Exit(1)
 	}
-	if err := strg.New(); err != nil {
-		log.Error("Failed to initialize database", sl.Err(err))
+	redis, err := rds.New(cfg.Redis)
+	if err != nil {
+		log.Error("Failed to connect to Redis", sl.Err(err))
 		os.Exit(1)
 	}
 	log.Info("Connected to database", "host", cfg.Storage.Host, "port", cfg.Storage.Port)
@@ -53,8 +51,8 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/url", save.New(log, strg, rdsClient))
-	router.Get("/{alias}", redirect.New(log, strg, rdsClient))
+	router.Post("/url", save.New(log, store, redis))
+	router.Get("/{alias}", redirect.New(log, store, redis))
 
 	log.Info("Starting HTTP server", slog.String("address", cfg.HTTPServer.Address))
 
@@ -65,8 +63,28 @@ func main() {
 		WriteTimeout: cfg.HTTPServer.Timeout,
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("failed to start server")
-	}
-	log.Error("server stopped")
+	go func() {
+		err = srv.ListenAndServe()
+		if err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				return
+			}
+			log.Error("Failed to start HTTP server", sl.Err(err))
+			os.Exit(1)
+		}
+	}()
+
+	// graceful shutdown
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	log.Info("Shutting down HTTP server")
+	_ = srv.Shutdown(context.Background())
+	log.Info("Shutting down Redis server")
+	_ = redis.Close()
+	log.Info("Shutting down SQL connection")
+	_ = store.Close()
+	log.Info("Application stopped")
+
 }
