@@ -9,10 +9,12 @@ import (
 )
 
 type Config struct {
-	Env        string       `yaml:"env" env-required:"true"`
-	Storage    Storage      `yaml:"postgres" env-required:"true"`
-	HTTPServer HTTPServer   `yaml:"http_server"`
-	Redis      RedisStorage `yaml:"redis" env-required:"true"`
+	Env        string        `yaml:"env" env-required:"true"`
+	Storage    Storage       `yaml:"postgres" env-required:"true"`
+	HTTPServer HTTPServer    `yaml:"http_server"`
+	Redis      RedisStorage  `yaml:"redis" env-required:"true"`
+	Clients    ClientsConfig `yaml:"clients"`
+	AppSecret  string        `yaml:"app_secret" env-required:"true" env:"APP_SECRET"`
 }
 
 type RedisStorage struct {
@@ -23,6 +25,17 @@ type RedisStorage struct {
 	DB       int    `yaml:"db" env-default:"0" validate:"min=0,integer"`
 	PoolSize int    `yaml:"pool_size" env-default:"10"`
 	Protocol string `yaml:"protocol" env-default:"tcp"`
+}
+
+type Client struct {
+	Address  string        `yaml:"address"`
+	Timeout  time.Duration `yaml:"timeout"`
+	Retries  int           `yaml:"retries"`
+	Insecure bool          `yaml:"insecure"`
+}
+
+type ClientsConfig struct {
+	SSO Client `yaml:"sso"`
 }
 
 type HTTPServer struct {

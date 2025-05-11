@@ -5,7 +5,9 @@ import (
 	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	ssogrpc "github.com/kxddry/url-shortener/internal/clients/sso/grpc"
 	"github.com/kxddry/url-shortener/internal/config"
+	del "github.com/kxddry/url-shortener/internal/http-server/handlers/url/delete"
 	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/redirect"
 	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/save"
 	mwLogger "github.com/kxddry/url-shortener/internal/http-server/middleware/logger"
@@ -30,6 +32,24 @@ func main() {
 	log.Info("Host and port", "host", cfg.HTTPServer.Address, "port", cfg.Storage.Port)
 	log.Debug("debug messages are enabled")
 
+	// init SSO client
+	sso := cfg.Clients.SSO
+	ssoClient, err := ssogrpc.New(context.Background(), log, sso.Address, sso.Timeout, sso.Retries)
+	if err != nil {
+		log.Error("Error initializing SSO client", sl.Err(err))
+		os.Exit(1)
+	}
+
+	// TODO: implement authorization logic
+	// Get() --> redirect
+	// Save() --> authorization via SSO --> comes back with the token --> saves
+	// (if the alias was created by the same user, rewrites it)
+	// (if the alias was created by another user, returns an error unless it's an admin)
+	// Delete() --> authorization via SSO --> comes back with the JWT token --> deletes
+	// (only if the user is the admin or the one to have created the token)
+	// idk how to implement it just yet
+	_ = ssoClient
+
 	// init storage
 	store, err := postgres.New(cfg.Storage)
 	if err != nil {
@@ -53,6 +73,7 @@ func main() {
 
 	router.Post("/url", save.New(log, store, redis))
 	router.Get("/{alias}", redirect.New(log, store, redis))
+	router.Delete("/{alias}", del.New(log, store, redis))
 
 	log.Info("Starting HTTP server", slog.String("address", cfg.HTTPServer.Address))
 

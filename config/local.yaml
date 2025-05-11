@@ -19,3 +19,12 @@ http_server:
     address: "localhost:8085"
     timeout: 5s
     idle_timeout: 60s
+
+clients:
+    sso:
+        address: "localhost:42042"
+        timeout: 5s
+        retries: 5
+        insecure: true
+
+app_secret: "DgsqOC0GXfWYqZ9Qqm/iTGqRrrd+MdFXhY3UAlnWr8wyXeGfuzBD7A=="
