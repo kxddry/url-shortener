@@ -10,7 +10,7 @@ postgres:
 redis:
     host: "localhost"
     user: "default"
-    port: 5374
+    port: 6379
     password: ""
     db: 0
     protocol: "tcp"

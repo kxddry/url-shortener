@@ -3,10 +3,10 @@ package redis
 import (
 	"context"
 	"fmt"
+	"github.com/kxddry/url-shortener/internal/config"
+	"github.com/kxddry/url-shortener/internal/lib/random"
 	"github.com/redis/go-redis/v9"
 	"time"
-	"url-shortener/internal/config"
-	"url-shortener/internal/lib/random"
 )
 
 type RedisOptions struct {

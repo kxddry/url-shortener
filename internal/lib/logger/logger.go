@@ -1,9 +1,9 @@
 package logger
 
 import (
+	"github.com/kxddry/url-shortener/internal/lib/logger/handlers/slogpretty"
 	"log/slog"
 	"os"
-	"url-shortener/internal/lib/logger/handlers/slogpretty"
 )
 
 const (

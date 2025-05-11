@@ -3,18 +3,18 @@ package main
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/kxddry/url-shortener/internal/config"
+	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/redirect"
+	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/save"
+	mwLogger "github.com/kxddry/url-shortener/internal/http-server/middleware/logger"
+	"github.com/kxddry/url-shortener/internal/lib/logger"
+	"github.com/kxddry/url-shortener/internal/lib/logger/sl"
+	"github.com/kxddry/url-shortener/internal/storage"
+	"github.com/kxddry/url-shortener/internal/storage/postgres"
+	rds "github.com/kxddry/url-shortener/internal/storage/redis"
 	"log/slog"
 	"net/http"
 	"os"
-	"url-shortener/internal/config"
-	"url-shortener/internal/http-server/handlers/url/redirect"
-	"url-shortener/internal/http-server/handlers/url/save"
-	mwLogger "url-shortener/internal/http-server/middleware/logger"
-	"url-shortener/internal/lib/logger"
-	"url-shortener/internal/lib/logger/sl"
-	"url-shortener/internal/storage"
-	"url-shortener/internal/storage/postgres"
-	rds "url-shortener/internal/storage/redis"
 )
 
 func main() {
@@ -44,6 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 	log.Info("Connected to database", "host", cfg.Storage.Host, "port", cfg.Storage.Port)
+	log.Info("Connected to Redis", "host", cfg.Redis.Host, "port", cfg.Redis.Port)
 
 	router := chi.NewRouter()
 

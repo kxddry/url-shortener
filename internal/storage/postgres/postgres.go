@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/kxddry/url-shortener/internal/config"
+	"github.com/kxddry/url-shortener/internal/lib/random"
+	"github.com/kxddry/url-shortener/internal/storage"
 	"time"
-	"url-shortener/internal/config"
-	"url-shortener/internal/lib/random"
-	"url-shortener/internal/storage"
 
 	"github.com/lib/pq"
 )
