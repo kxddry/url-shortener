@@ -16,7 +16,7 @@ import (
 
 type URLGetSaver interface {
 	URLGetter
-	SaveURL(urlToSave, alias string) (int64, error)
+	SaveURL(urlToSave, alias string, creator int64) (int64, error)
 }
 
 type URLGetter interface {
@@ -55,7 +55,7 @@ func New(log *slog.Logger, urlGetter URLGetter, redis URLGetSaver) http.HandlerF
 			return
 		}
 		log.Debug("alias found", slog.String("alias", alias), slog.String("url", resURL))
-		_, err = redis.SaveURL(alias, resURL) // cache the URL in redis
+		_, err = redis.SaveURL(alias, resURL, 0) // cache the URL in redis
 		if err != nil {
 			log.Error("failed to save URL in redis", slog.String("alias", alias), slog.String("url", resURL), sl.Err(err))
 		}

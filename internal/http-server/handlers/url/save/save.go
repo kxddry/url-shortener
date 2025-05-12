@@ -6,7 +6,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
+	"github.com/kxddry/url-shortener/internal/config"
 	resp "github.com/kxddry/url-shortener/internal/lib/api/response"
+	"github.com/kxddry/url-shortener/internal/lib/genalias"
+	"github.com/kxddry/url-shortener/internal/lib/jwt"
 	"github.com/kxddry/url-shortener/internal/lib/logger/sl"
 	"github.com/kxddry/url-shortener/internal/storage"
 	"io"
@@ -25,13 +28,21 @@ type Response struct {
 }
 
 type URLSaver interface {
-	SaveURL(urlToSave, alias string) (int64, error)
-	GenerateAlias(length int) (string, error)
+	SaveURL(urlToSave, alias string, creator int64) (int64, error)
+}
+
+type URLGetter interface {
+	GetURL(alias string) (string, error)
+}
+
+type URLSaveGetter interface {
+	URLSaver
+	URLGetter
 }
 
 const aliasLength = 6
 
-func New(log *slog.Logger, urlSaver, redis URLSaver) http.HandlerFunc {
+func New(log *slog.Logger, urlSaver URLSaveGetter, redis URLSaver, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.url.save.New"
 
@@ -55,6 +66,22 @@ func New(log *slog.Logger, urlSaver, redis URLSaver) http.HandlerFunc {
 			return
 		}
 
+		uid, err := jwt.UIDfromHeader(r, cfg.App.Secret)
+
+		if err != nil {
+			if errors.Is(err, jwt.ErrNoHeader) {
+				log.Info("not logged in")
+				w.WriteHeader(http.StatusUnauthorized)
+				render.JSON(w, r, resp.Error(resp.Unauthorized, "You're not logged in. Go to /login."))
+				return
+			}
+
+			log.Error("invalid token", slog.Any("jwt", r.Header.Get("Authorization")))
+			w.WriteHeader(http.StatusUnauthorized)
+			render.JSON(w, r, resp.Error(resp.Unauthorized, "invalid token"))
+			return
+		}
+
 		log.Info("request body decoded", slog.Any("request", req))
 
 		if err := validator.New().Struct(req); err != nil {
@@ -68,7 +95,7 @@ func New(log *slog.Logger, urlSaver, redis URLSaver) http.HandlerFunc {
 		alias := req.Alias
 		if alias == "" {
 			var err error
-			alias, err = urlSaver.GenerateAlias(aliasLength)
+			alias, err = genalias.GenerateAlias(aliasLength, urlSaver)
 			if err != nil {
 				log.Error("failed to generate alias", sl.Err(err))
 				w.WriteHeader(http.StatusInternalServerError)
@@ -85,12 +112,12 @@ func New(log *slog.Logger, urlSaver, redis URLSaver) http.HandlerFunc {
 		}
 
 		// save to redis first
-		_, err := redis.SaveURL(req.URL, alias)
+		_, err = redis.SaveURL(req.URL, alias, uid)
 		if err != nil {
 			log.Error(fmt.Sprintf("failed to save to redis %s: %w", op, err))
 		}
 
-		id, err := urlSaver.SaveURL(req.URL, alias)
+		id, err := urlSaver.SaveURL(req.URL, alias, uid)
 		if errors.Is(err, storage.ErrAliasExists) {
 			log.Error("alias already exists", sl.Err(err))
 			w.WriteHeader(http.StatusNotAcceptable)

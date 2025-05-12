@@ -8,7 +8,10 @@ import (
 	ssogrpc "github.com/kxddry/url-shortener/internal/clients/sso/grpc"
 	"github.com/kxddry/url-shortener/internal/config"
 	del "github.com/kxddry/url-shortener/internal/http-server/handlers/url/delete"
+	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/homepage"
+	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/login"
 	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/redirect"
+	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/register"
 	"github.com/kxddry/url-shortener/internal/http-server/handlers/url/save"
 	mwLogger "github.com/kxddry/url-shortener/internal/http-server/middleware/logger"
 	"github.com/kxddry/url-shortener/internal/lib/logger"
@@ -40,15 +43,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: implement authorization logic
-	// Get() --> redirect
-	// Save() --> authorization via SSO --> comes back with the token --> saves
-	// (if the alias was created by the same user, rewrites it)
-	// (if the alias was created by another user, returns an error unless it's an admin)
-	// Delete() --> authorization via SSO --> comes back with the JWT token --> deletes
-	// (only if the user is the admin or the one to have created the token)
-	// idk how to implement it just yet
-	_ = ssoClient
+	cfg.App.ID, err = ssoClient.AppID(context.Background(), cfg.App.Name, cfg.App.Secret)
+	if err != nil {
+		log.Error("failed to get appId", sl.Err(err))
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
 
 	// init storage
 	store, err := postgres.New(cfg.Storage)
@@ -71,9 +72,18 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/url", save.New(log, store, redis))
+	router.Post("/url", save.New(log, store, redis, cfg))
+	router.Get("/", homepage.Url(log, cfg))
+	router.Get("/url", homepage.Url(log, cfg))
+
+	router.Get("/login", homepage.Login(cfg))
+	router.Post("/login", login.New(ctx, log, cfg, ssoClient))
+
+	router.Get("/register", homepage.Register(cfg))
+	router.Post("/register", register.New(ctx, log, ssoClient))
+
 	router.Get("/{alias}", redirect.New(log, store, redis))
-	router.Delete("/{alias}", del.New(log, store, redis))
+	router.Delete("/{alias}", del.New(ctx, log, cfg, store, redis, ssoClient))
 
 	log.Info("Starting HTTP server", slog.String("address", cfg.HTTPServer.Address))
 

@@ -60,6 +60,44 @@ func (c *Client) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	return resp.IsAdmin, nil
 }
 
+func (c *Client) AppID(ctx context.Context, appName, appSecret string) (int64, error) {
+	const op = "grpc.AppID"
+	resp, err := c.api.AppID(ctx, &ssov1.AppRequest{
+		Name:   appName,
+		Secret: appSecret,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return resp.AppId, nil
+}
+
+func (c *Client) Login(ctx context.Context, placeholder, pass string, appId int64) (string, error) {
+	const op = "grpc.Login"
+	resp, err := c.api.Login(ctx, &ssov1.LoginRequest{
+		Placeholder: placeholder,
+		Password:    pass,
+		AppId:       appId,
+	})
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+	return resp.Token, nil
+}
+
+func (c *Client) Register(ctx context.Context, email, username, password string) (int64, error) {
+	const op = "grpc.Register"
+	resp, err := c.api.Register(ctx, &ssov1.RegisterRequest{
+		Email:    email,
+		Username: username,
+		Password: password,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return resp.UserId, nil
+}
+
 // InterceptorLogger adapts slog logger to interceptor logger.
 // The code is simple enough to be copied rather than imported.
 func InterceptorLogger(l *slog.Logger) grpclog.Logger {

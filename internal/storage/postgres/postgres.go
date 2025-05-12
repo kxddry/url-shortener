@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"github.com/kxddry/url-shortener/internal/config"
 	"github.com/kxddry/url-shortener/internal/lib/pqlinks"
-	"github.com/kxddry/url-shortener/internal/lib/random"
 	"github.com/kxddry/url-shortener/internal/storage"
 	"github.com/lib/pq"
-	"time"
 )
 
 type Storage struct {
@@ -27,7 +25,7 @@ func New(cfg config.Storage) (*Storage, error) {
 	return &Storage{db: db}, db.Ping()
 }
 
-func (s *Storage) SaveURL(urlToSave, alias string) (int64, error) {
+func (s *Storage) SaveURL(urlToSave, alias string, creator int64) (int64, error) {
 	const op = "storage.postgres.SaveURL"
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -36,7 +34,7 @@ func (s *Storage) SaveURL(urlToSave, alias string) (int64, error) {
 	defer tx.Rollback()
 
 	var id int64
-	err = tx.QueryRow(`INSERT INTO url (alias, url) VALUES ($1, $2) RETURNING id;`, alias, urlToSave).Scan(&id)
+	err = tx.QueryRow(`INSERT INTO url (alias, url, createdBy) VALUES ($1, $2, $3) RETURNING id;`, alias, urlToSave, creator).Scan(&id)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code.Name() == "unique_violation" {
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrAliasExists)
@@ -68,38 +66,33 @@ func (s *Storage) GetURL(alias string) (string, error) {
 func (s *Storage) DeleteURL(alias string) error {
 	const op = "storage.DeleteURL"
 	tx, err := s.db.Begin()
+	defer tx.Rollback()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	_, err = tx.ExecContext(context.Background(), "DELETE FROM url WHERE alias = $1", alias)
 	if err != nil {
-		_ = tx.Rollback()
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return tx.Commit()
 }
 
-func (s *Storage) GenerateAlias(length int) (string, error) {
-	const op = "storage.postgres.GenerateAlias"
-	alias := random.NewRandomString(length)
-	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // hardcoding this prob isn't the way
-	defer cancel()
-	for {
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("%s: %w", op, ctx.Err())
+func (s *Storage) Creator(alias string) (int64, error) {
+	const op = "storage.Creator"
+
+	row := s.db.QueryRow(`SELECT createdBy FROM url WHERE alias = $1;`, alias)
+
+	var uid int64
+	err := row.Scan(&uid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrAliasNotFound)
 		}
-		_, err = s.GetURL(alias)
-		if errors.Is(err, storage.ErrAliasNotFound) {
-			break
-		}
-		if err == nil {
-			alias = random.NewRandomString(length)
-			continue
-		}
-		return "", fmt.Errorf("%s: %w", op, err)
+
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
-	return alias, nil
+
+	return uid, nil
 }
 
 func (s *Storage) Close() error {

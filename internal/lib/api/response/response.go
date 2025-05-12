@@ -9,15 +9,17 @@ import (
 type Response struct {
 	Status string `json:"status"` // "ok" or "error"
 	Error  string `json:"error,omitempty"`
+	Info   string `json:"info,omitempty"`
 }
 
 const (
-	StatusOK            = "OK"
-	BadRequest          = "Bad Request"
-	NotFound            = "Not Found"
-	InternalServerError = "Internal Server Error"
-	Forbidden           = "Forbidden"
-	NotAcceptable       = "Not Acceptable"
+	StatusOK            = "200 OK"
+	BadRequest          = "400 Bad Request"
+	NotFound            = "404 Not Found"
+	InternalServerError = "501 Internal Server Error"
+	// Forbidden           = "403 Forbidden"
+	NotAcceptable = "406 Not Acceptable"
+	Unauthorized  = "401 Unauthorized"
 )
 
 func OK() Response {
@@ -26,22 +28,16 @@ func OK() Response {
 	}
 }
 
-func Error(code, msg string) Response {
-	var StatusError string
-	switch code {
-	case "400":
-		StatusError = BadRequest
-	case "404":
-		StatusError = NotFound
-	case "500":
-		StatusError = InternalServerError
-	case "403":
-		StatusError = Forbidden
-	default:
-		StatusError = NotAcceptable
-	}
+func Info(msg string) Response {
 	return Response{
-		Status: StatusError,
+		Status: StatusOK,
+		Info:   msg,
+	}
+}
+
+func Error(code, msg string) Response {
+	return Response{
+		Status: code,
 		Error:  msg,
 	}
 }

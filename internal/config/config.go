@@ -14,7 +14,14 @@ type Config struct {
 	HTTPServer HTTPServer    `yaml:"http_server"`
 	Redis      RedisStorage  `yaml:"redis" env-required:"true"`
 	Clients    ClientsConfig `yaml:"clients"`
-	AppSecret  string        `yaml:"app_secret" env-required:"true" env:"APP_SECRET"`
+	App        App           `yaml:"app" env-required:"true"`
+	TokenTTL   time.Duration `yaml:"token_ttl" env-required:"true"`
+}
+
+type App struct {
+	Name   string `yaml:"name" env-required:"true"`
+	Secret string `yaml:"secret" env-required:"true" env:"APP_SECRET"`
+	ID     int64
 }
 
 type RedisStorage struct {

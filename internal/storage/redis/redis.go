@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kxddry/url-shortener/internal/config"
-	"github.com/kxddry/url-shortener/internal/lib/random"
 	"github.com/redis/go-redis/v9"
-	"time"
 )
 
 type RedisOptions struct {
@@ -41,7 +39,8 @@ func (r *RedisClient) connect() error {
 	return r.client.Ping(context.Background()).Err()
 }
 
-func (r *RedisClient) SaveURL(urlToSave, alias string) (int64, error) {
+func (r *RedisClient) SaveURL(urlToSave, alias string, creator int64) (int64, error) {
+	_ = creator // don't store the creator in redis
 	const op = "storage.redis.SaveURL"
 	multi := r.client.TxPipeline()
 
@@ -70,26 +69,6 @@ func (r *RedisClient) DeleteURL(alias string) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
-}
-
-func (r *RedisClient) GenerateAlias(i int) (string, error) {
-	const op = "storage.redis.GenerateAlias"
-
-	alias := random.NewRandomString(i)
-	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	for {
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("%s: %w", op, ctx.Err())
-		}
-		err = r.client.SetNX(ctx, alias, "", 0).Err()
-		if err == nil {
-			break
-		}
-		alias = random.NewRandomString(i)
-	}
-	return alias, nil
 }
 
 func (r *RedisClient) Close() error {
