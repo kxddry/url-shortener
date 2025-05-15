@@ -55,7 +55,7 @@ func New(log *slog.Logger, urlSaver URLSaveGetter, redis URLSaver, cfg *config.C
 
 		if err := render.DecodeJSON(r.Body, &req); err != nil {
 			if errors.Is(err, io.EOF) {
-				log.Error("request body is empty", sl.Err(err))
+				log.Info("request body is empty")
 				w.WriteHeader(http.StatusBadRequest)
 				render.JSON(w, r, resp.Error(resp.BadRequest, "request body is empty"))
 				return
